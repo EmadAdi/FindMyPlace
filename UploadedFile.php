@@ -1,211 +1,157 @@
 <?php
 
-declare(strict_types=1);
+namespace Illuminate\Http;
 
-namespace GuzzleHttp\Psr7;
+use Illuminate\Container\Container;
+use Illuminate\Contracts\Filesystem\Factory as FilesystemFactory;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
+use Illuminate\Http\Testing\FileFactory;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Traits\Macroable;
+use Symfony\Component\HttpFoundation\File\UploadedFile as SymfonyUploadedFile;
 
-use InvalidArgumentException;
-use Psr\Http\Message\StreamInterface;
-use Psr\Http\Message\UploadedFileInterface;
-use RuntimeException;
-
-class UploadedFile implements UploadedFileInterface
+class UploadedFile extends SymfonyUploadedFile
 {
-    private const ERROR_MAP = [
-        UPLOAD_ERR_OK => 'UPLOAD_ERR_OK',
-        UPLOAD_ERR_INI_SIZE => 'UPLOAD_ERR_INI_SIZE',
-        UPLOAD_ERR_FORM_SIZE => 'UPLOAD_ERR_FORM_SIZE',
-        UPLOAD_ERR_PARTIAL => 'UPLOAD_ERR_PARTIAL',
-        UPLOAD_ERR_NO_FILE => 'UPLOAD_ERR_NO_FILE',
-        UPLOAD_ERR_NO_TMP_DIR => 'UPLOAD_ERR_NO_TMP_DIR',
-        UPLOAD_ERR_CANT_WRITE => 'UPLOAD_ERR_CANT_WRITE',
-        UPLOAD_ERR_EXTENSION => 'UPLOAD_ERR_EXTENSION',
-    ];
+    use FileHelpers, Macroable;
 
     /**
-     * @var string|null
-     */
-    private $clientFilename;
-
-    /**
-     * @var string|null
-     */
-    private $clientMediaType;
-
-    /**
-     * @var int
-     */
-    private $error;
-
-    /**
-     * @var string|null
-     */
-    private $file;
-
-    /**
-     * @var bool
-     */
-    private $moved = false;
-
-    /**
-     * @var int|null
-     */
-    private $size;
-
-    /**
-     * @var StreamInterface|null
-     */
-    private $stream;
-
-    /**
-     * @param StreamInterface|string|resource $streamOrFile
-     */
-    public function __construct(
-        $streamOrFile,
-        ?int $size,
-        int $errorStatus,
-        ?string $clientFilename = null,
-        ?string $clientMediaType = null
-    ) {
-        $this->setError($errorStatus);
-        $this->size = $size;
-        $this->clientFilename = $clientFilename;
-        $this->clientMediaType = $clientMediaType;
-
-        if ($this->isOk()) {
-            $this->setStreamOrFile($streamOrFile);
-        }
-    }
-
-    /**
-     * Depending on the value set file or stream variable
+     * Begin creating a new file fake.
      *
-     * @param StreamInterface|string|resource $streamOrFile
+     * @return \Illuminate\Http\Testing\FileFactory
+     */
+    public static function fake()
+    {
+        return new FileFactory;
+    }
+
+    /**
+     * Store the uploaded file on a filesystem disk.
      *
-     * @throws InvalidArgumentException
+     * @param  string  $path
+     * @param  array|string  $options
+     * @return string|false
      */
-    private function setStreamOrFile($streamOrFile): void
+    public function store($path = '', $options = [])
     {
-        if (is_string($streamOrFile)) {
-            $this->file = $streamOrFile;
-        } elseif (is_resource($streamOrFile)) {
-            $this->stream = new Stream($streamOrFile);
-        } elseif ($streamOrFile instanceof StreamInterface) {
-            $this->stream = $streamOrFile;
-        } else {
-            throw new InvalidArgumentException(
-                'Invalid stream or file provided for UploadedFile'
-            );
-        }
+        return $this->storeAs($path, $this->hashName(), $this->parseOptions($options));
     }
 
     /**
-     * @throws InvalidArgumentException
+     * Store the uploaded file on a filesystem disk with public visibility.
+     *
+     * @param  string  $path
+     * @param  array|string  $options
+     * @return string|false
      */
-    private function setError(int $error): void
+    public function storePublicly($path = '', $options = [])
     {
-        if (!isset(UploadedFile::ERROR_MAP[$error])) {
-            throw new InvalidArgumentException(
-                'Invalid error status for UploadedFile'
-            );
-        }
+        $options = $this->parseOptions($options);
 
-        $this->error = $error;
-    }
+        $options['visibility'] = 'public';
 
-    private static function isStringNotEmpty($param): bool
-    {
-        return is_string($param) && false === empty($param);
+        return $this->storeAs($path, $this->hashName(), $options);
     }
 
     /**
-     * Return true if there is no upload error
+     * Store the uploaded file on a filesystem disk with public visibility.
+     *
+     * @param  string  $path
+     * @param  array|string|null  $name
+     * @param  array|string  $options
+     * @return string|false
      */
-    private function isOk(): bool
+    public function storePubliclyAs($path, $name = null, $options = [])
     {
-        return $this->error === UPLOAD_ERR_OK;
-    }
+        if (is_null($name) || is_array($name)) {
+            [$path, $name, $options] = ['', $path, $name ?? []];
+        }
 
-    public function isMoved(): bool
-    {
-        return $this->moved;
+        $options = $this->parseOptions($options);
+
+        $options['visibility'] = 'public';
+
+        return $this->storeAs($path, $name, $options);
     }
 
     /**
-     * @throws RuntimeException if is moved or not ok
+     * Store the uploaded file on a filesystem disk.
+     *
+     * @param  string  $path
+     * @param  string|array  $name
+     * @param  array|string  $options
+     * @return string|false
      */
-    private function validateActive(): void
+    public function storeAs($path, $name = null, $options = [])
     {
-        if (false === $this->isOk()) {
-            throw new RuntimeException(\sprintf('Cannot retrieve stream due to upload error (%s)', self::ERROR_MAP[$this->error]));
+        if (is_null($name) || is_array($name)) {
+            [$path, $name, $options] = ['', $path, $name ?? []];
         }
 
-        if ($this->isMoved()) {
-            throw new RuntimeException('Cannot retrieve stream after it has already been moved');
-        }
+        $options = $this->parseOptions($options);
+
+        $disk = Arr::pull($options, 'disk');
+
+        return Container::getInstance()->make(FilesystemFactory::class)->disk($disk)->putFileAs(
+            $path, $this, $name, $options
+        );
     }
 
-    public function getStream(): StreamInterface
+    /**
+     * Get the contents of the uploaded file.
+     *
+     * @return false|string
+     *
+     * @throws \Illuminate\Contracts\Filesystem\FileNotFoundException
+     */
+    public function get()
     {
-        $this->validateActive();
-
-        if ($this->stream instanceof StreamInterface) {
-            return $this->stream;
-        }
-
-        /** @var string $file */
-        $file = $this->file;
-
-        return new LazyOpenStream($file, 'r+');
-    }
-
-    public function moveTo($targetPath): void
-    {
-        $this->validateActive();
-
-        if (false === self::isStringNotEmpty($targetPath)) {
-            throw new InvalidArgumentException(
-                'Invalid path provided for move operation; must be a non-empty string'
-            );
+        if (! $this->isValid()) {
+            throw new FileNotFoundException("File does not exist at path {$this->getPathname()}.");
         }
 
-        if ($this->file) {
-            $this->moved = PHP_SAPI === 'cli'
-                ? rename($this->file, $targetPath)
-                : move_uploaded_file($this->file, $targetPath);
-        } else {
-            Utils::copyToStream(
-                $this->getStream(),
-                new LazyOpenStream($targetPath, 'w')
-            );
+        return file_get_contents($this->getPathname());
+    }
 
-            $this->moved = true;
+    /**
+     * Get the file's extension supplied by the client.
+     *
+     * @return string
+     */
+    public function clientExtension()
+    {
+        return $this->guessClientExtension();
+    }
+
+    /**
+     * Create a new file instance from a base instance.
+     *
+     * @param  \Symfony\Component\HttpFoundation\File\UploadedFile  $file
+     * @param  bool  $test
+     * @return static
+     */
+    public static function createFromBase(SymfonyUploadedFile $file, $test = false)
+    {
+        return $file instanceof static ? $file : new static(
+            $file->getPathname(),
+            $file->getClientOriginalPath(),
+            $file->getClientMimeType(),
+            $file->getError(),
+            $test
+        );
+    }
+
+    /**
+     * Parse and format the given options.
+     *
+     * @param  array|string  $options
+     * @return array
+     */
+    protected function parseOptions($options)
+    {
+        if (is_string($options)) {
+            $options = ['disk' => $options];
         }
 
-        if (false === $this->moved) {
-            throw new RuntimeException(
-                sprintf('Uploaded file could not be moved to %s', $targetPath)
-            );
-        }
-    }
-
-    public function getSize(): ?int
-    {
-        return $this->size;
-    }
-
-    public function getError(): int
-    {
-        return $this->error;
-    }
-
-    public function getClientFilename(): ?string
-    {
-        return $this->clientFilename;
-    }
-
-    public function getClientMediaType(): ?string
-    {
-        return $this->clientMediaType;
+        return $options;
     }
 }
