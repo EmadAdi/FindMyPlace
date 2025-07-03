@@ -46,21 +46,6 @@ return [
             'throw' => false,
             'report' => false,
         ],
-         // ✅ قرص لصور الغلاف
-    'main_image' => [
-        'driver' => 'local',
-        'root' => storage_path('app/public/properties/main'),
-        'url' => env('APP_URL') . '/storage/properties/main',
-        'visibility' => 'public',
-    ],
-
-      // ✅ قرص لصور المعرض
-      'gallery' => [
-        'driver' => 'local',
-        'root' => storage_path('app/public/properties/gallery'),
-        'url' => env('APP_URL') . '/storage/properties/gallery',
-        'visibility' => 'public',
-    ],
 
         's3' => [
             'driver' => 's3',
