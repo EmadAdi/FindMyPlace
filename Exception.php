@@ -8,8 +8,11 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use Mockery\Exception\MockeryExceptionInterface;
+use UnexpectedValueException;
+
+class Exception extends UnexpectedValueException implements MockeryExceptionInterface
 {
 }

@@ -8,8 +8,14 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+declare(strict_types=1);
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+namespace Mockery\Adapter\Phpunit;
+
+trait MockeryPHPUnitIntegrationAssertPostConditions
 {
+    protected function assertPostConditions(): void
+    {
+        $this->mockeryAssertPostConditions();
+    }
 }

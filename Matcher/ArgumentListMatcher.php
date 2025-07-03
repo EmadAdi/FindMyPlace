@@ -8,8 +8,8 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\Matcher;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+interface ArgumentListMatcher
 {
 }

@@ -8,8 +8,16 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\Loader;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use Mockery\Generator\MockDefinition;
+
+interface Loader
 {
+    /**
+     * Load the given mock definition
+     *
+     * @return void
+     */
+    public function load(MockDefinition $definition);
 }

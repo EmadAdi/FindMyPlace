@@ -8,8 +8,20 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\Adapter\Phpunit;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use PHPUnit\Framework\TestCase;
+
+abstract class MockeryTestCase extends TestCase
 {
+    use MockeryPHPUnitIntegration;
+    use MockeryTestCaseSetUp;
+
+    protected function mockeryTestSetUp()
+    {
+    }
+
+    protected function mockeryTestTearDown()
+    {
+    }
 }

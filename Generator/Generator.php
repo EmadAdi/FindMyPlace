@@ -8,8 +8,12 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\Generator;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+interface Generator
 {
+    /**
+     * @returns MockDefinition
+     */
+    public function generate(MockConfiguration $config);
 }

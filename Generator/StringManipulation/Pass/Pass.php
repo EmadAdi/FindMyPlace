@@ -8,8 +8,15 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\Generator\StringManipulation\Pass;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use Mockery\Generator\MockConfiguration;
+
+interface Pass
 {
+    /**
+     * @param  string $code
+     * @return string
+     */
+    public function apply($code, MockConfiguration $config);
 }

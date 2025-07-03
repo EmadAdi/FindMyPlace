@@ -8,8 +8,12 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
+declare(strict_types=1);
+
 namespace Mockery\Exception;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use Throwable;
+
+interface MockeryExceptionInterface extends Throwable
 {
 }

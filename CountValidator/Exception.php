@@ -8,8 +8,11 @@
  * @link https://github.com/mockery/mockery for the canonical source repository
  */
 
-namespace Mockery\Exception;
+namespace Mockery\CountValidator;
 
-class InvalidArgumentException extends \InvalidArgumentException implements MockeryExceptionInterface
+use Mockery\Exception\MockeryExceptionInterface;
+use OutOfBoundsException;
+
+class Exception extends OutOfBoundsException implements MockeryExceptionInterface
 {
 }
